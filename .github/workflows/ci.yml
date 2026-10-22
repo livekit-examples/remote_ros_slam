@@ -25,3 +25,9 @@ jobs:
           LIVEKIT_URL: ci-placeholder
           LIVEKIT_TOKEN: ci-placeholder
 
+      - name: colcon test
+        run: >-
+          docker run --rm remote_ros_slam:jazzy bash -c
+          'source /opt/ros/jazzy/setup.bash
+          && colcon test --packages-select livekit_scarf_slam
+          && colcon test-result --verbose'

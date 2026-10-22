@@ -20,8 +20,11 @@ services:
       DISPLAY: ${DISPLAY:-}
       QT_X11_NO_MITSHM: "1"
     volumes:
-      # Host sources for live editing.
+      # Host sources and calibration for live editing.
       - ./src/:/remote_ros_slam/src
+      - ./calibration/:/remote_ros_slam/calibration
+      # SLAM run output (slam_bag, rtabmap.db) persists on the host.
+      - ./runs/:/remote_ros_slam/runs
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
     working_dir: /remote_ros_slam
     command: ["tail", "-f", "/dev/null"]
@@ -40,7 +43,9 @@ services:
       LIVEKIT_TOKEN: ${LIVEKIT_TOKEN:?Set LIVEKIT_TOKEN}
     volumes:
       - /dev:/dev
-      - ${LIVEKIT_CONFIG:-./config/livekit.yaml}:/tmp/remote_ros_slam_livekit.yaml:ro
+      # Default: SLAM host side (receives the stereo track). On the robot, set
+      # LIVEKIT_CONFIG=./src/livekit_scarf_slam/config/ros_portal/edge_robot.yaml
+      - ${LIVEKIT_CONFIG:-./src/livekit_scarf_slam/config/ros_portal/slam_host.yaml}:/tmp/remote_ros_slam_livekit.yaml:ro
     command:
       - ros2
       - launch

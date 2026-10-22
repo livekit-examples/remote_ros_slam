@@ -1,0 +1,26 @@
+diff --git a/src/depth_anything_3/utils/export/colmap.py b/src/depth_anything_3/utils/export/colmap.py
+index e57964c..90206d6 100644
+--- a/src/depth_anything_3/utils/export/colmap.py
++++ b/src/depth_anything_3/utils/export/colmap.py
+@@ -13,7 +13,10 @@
+ # limitations under the License.
+ 
+ import os
+-import pycolmap
++try:
++    import pycolmap
++except ImportError:  # no aarch64 wheel; only export_to_colmap needs it
++    pycolmap = None
+ import cv2 as cv
+ import numpy as np
+ 
+@@ -49,6 +52,9 @@ def export_to_colmap(
+     points_xyf = _create_xyf(num_frames, h, w)
+     points_xyf = points_xyf[prediction.conf >= conf_thresh]
+ 
++    if pycolmap is None:
++        raise ImportError("pycolmap is required for COLMAP export")
++
+     # 2. Set Reconstruction
+     reconstruction = pycolmap.Reconstruction()
+ 

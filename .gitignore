@@ -54,3 +54,6 @@ CATKIN_IGNORE
 install/
 log/
 **/__pycache__/
+
+# SLAM run output (bind-mounted into the slam container)
+runs/

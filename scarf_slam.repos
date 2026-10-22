@@ -1,0 +1,11 @@
+# Plain Python projects (no ROS packages). The Dockerfile imports them into
+# /opt/scarf with vcs and installs them into the /opt/slam_venv venv.
+repositories:
+  ScaRF-SLAM:
+    type: git
+    url: https://github.com/ori-drs/ScaRF-SLAM.git
+    version: e0a34267d575d8b21d548ea8ed3cf5782192bac3
+  Depth-Anything-3:
+    type: git
+    url: https://github.com/ByteDance-Seed/Depth-Anything-3.git
+    version: 3d835ec1a5802d64a8b8b15f817a1ab54809bfe4
