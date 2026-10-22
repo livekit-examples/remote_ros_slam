@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The CUDA PyTorch wheels make the image larger than the runner's free
+      # disk, so drop preinstalled toolchains this build does not use.
+      - name: Free disk space
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+
+      - name: docker compose build
+        run: docker compose build
+        env:
+          # Compose interpolates the whole file (including ros_portal's
+          # required LIVEKIT_* vars) even when only building, so give it
+          # placeholders.
+          LIVEKIT_URL: ci-placeholder
+          LIVEKIT_TOKEN: ci-placeholder
+
+      - name: colcon test
+        run: >-
+          docker run --rm remote_ros_slam:jazzy bash -c
+          'source /opt/ros/jazzy/setup.bash
+          && colcon test --packages-select livekit_scarf_slam
+          && colcon test-result --verbose'

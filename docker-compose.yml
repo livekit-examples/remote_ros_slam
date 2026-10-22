@@ -1,0 +1,54 @@
+services:
+  slam:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: remote_ros_slam:jazzy
+    container_name: slam
+    # GPU passthrough: gpu-true reserves every NVIDIA GPU (needs the NVIDIA
+    # Container Toolkit on the host), gpu-false runs on the CPU. Set
+    # ENABLE_GPU=false on hosts without an NVIDIA GPU, e.g. Apple silicon.
+    extends:
+      file: gpu.compose.yml
+      service: gpu-${ENABLE_GPU:-true}
+    network_mode: host
+    # Shared memory with ros_portal, so DDS shared-memory transport works
+    # between the two containers.
+    ipc: host
+    environment:
+      # rtabmap_viz:=true needs an X display.
+      DISPLAY: ${DISPLAY:-}
+      QT_X11_NO_MITSHM: "1"
+    volumes:
+      # Host sources and calibration for live editing.
+      - ./src/:/remote_ros_slam/src
+      - ./calibration/:/remote_ros_slam/calibration
+      # SLAM run output (slam_bag, rtabmap.db) persists on the host.
+      - ./runs/:/remote_ros_slam/runs
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    working_dir: /remote_ros_slam
+    command: ["tail", "-f", "/dev/null"]
+    stdin_open: true
+    tty: true
+
+  ros_portal:
+    image: ${ROS_PORTAL_IMAGE:-livekit/ros-portal:jazzy-v1.0.0-rc3}
+    container_name: ros_portal
+    network_mode: host
+    ipc: host
+    privileged: true
+    # Privileged gives access to host /dev, including /dev/video*
+    environment:
+      LIVEKIT_URL: ${LIVEKIT_URL:?Set LIVEKIT_URL}
+      LIVEKIT_TOKEN: ${LIVEKIT_TOKEN:?Set LIVEKIT_TOKEN}
+    volumes:
+      - /dev:/dev
+      # Default: SLAM host side (receives the stereo track). On the robot, set
+      # LIVEKIT_CONFIG=./src/livekit_scarf_slam/config/ros_portal/edge_robot.yaml
+      - ${LIVEKIT_CONFIG:-./src/livekit_scarf_slam/config/ros_portal/slam_host.yaml}:/tmp/remote_ros_slam_livekit.yaml:ro
+    command:
+      - ros2
+      - launch
+      - ros_portal
+      - ros_portal.launch.py
+      - config_path:=/tmp/remote_ros_slam_livekit.yaml
