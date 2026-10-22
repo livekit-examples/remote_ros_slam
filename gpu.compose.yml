@@ -1,0 +1,19 @@
+# GPU on/off variants for the slam service. docker-compose.yml extends
+# gpu-${ENABLE_GPU}, so ENABLE_GPU must be exactly "true" or "false".
+services:
+  gpu-true:
+    environment:
+      ENABLE_GPU: "true"
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  gpu-false:
+    environment:
+      ENABLE_GPU: "false"
