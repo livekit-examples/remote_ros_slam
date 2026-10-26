@@ -1,0 +1,5 @@
+# pip constraints for every install into /opt/slam_venv (PIP_CONSTRAINT).
+# The Jazzy apt packages (cv_bridge &c) need numpy 1.x.
+numpy<2
+# torch needs >=77.0.3; colcon --symlink-install breaks on >=80.
+setuptools>=77.0.3,<80
