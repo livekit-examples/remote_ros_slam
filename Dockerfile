@@ -61,16 +61,18 @@ RUN vcs import /opt/scarf < /opt/scarf/scarf_slam.repos \
     && pip install --no-cache-dir rosbags open3d "vismatch==1.3.1" \
     && pip install --no-cache-dir --no-deps gtsam
 
-# Workspace sources. The dev compose service bind-mounts src/ and
-# calibration/ over these copies for live editing.
-COPY src src
-COPY calibration calibration
-
 # Install every dependency the package manifests declare (rtabmap_ros &c).
+# Only the manifests are copied first so source edits keep this layer cached.
+COPY src/livekit_scarf_slam/package.xml src/livekit_scarf_slam/package.xml
 RUN apt-get update \
     && rosdep update --rosdistro "${ROS_DISTRO}" \
     && rosdep install --from-paths src --ignore-src -y --rosdistro "${ROS_DISTRO}" \
     && rm -rf /var/lib/apt/lists/*
+
+# Workspace sources. The dev compose service bind-mounts src/ and
+# calibration/ over these copies for live editing.
+COPY src src
+COPY calibration calibration
 
 RUN . "/opt/ros/${ROS_DISTRO}/setup.sh" && colcon build --packages-up-to livekit_scarf_slam
 
