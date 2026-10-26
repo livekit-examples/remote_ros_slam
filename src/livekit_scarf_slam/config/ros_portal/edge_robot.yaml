@@ -12,10 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Default ROS Portal configuration of the SLAM host. Receives the robot camera
-# video track /camera/image_raw and republishes it as sensor_msgs/CompressedImage
-# on /camera/image_raw/compressed. Video tracks match by exact name, so this
-# entry is not a regex. Override with LIVEKIT_CONFIG.
+# ScaRF-SLAM demo, edge robot side (Jetson). See README.md.
+#
+# Sends the side-by-side (SBS) stereo JPEG topic as one LiveKit video track.
+# One track keeps both eyes in one frame with one stamp. The topic
+# /stereo_camera becomes the track stereo_camera.
 
 $schema: https://raw.githubusercontent.com/livekit/ros-portal/main/src/ros_portal_config/schema/ros_portal_config.schema.json
 
@@ -25,4 +26,6 @@ ros_portal:
 
   topics:
     - topic: "/stereo_camera"
-      direction: "in"
+      direction: "out"
+      video_options:
+        bitrate_kbps: 8000
