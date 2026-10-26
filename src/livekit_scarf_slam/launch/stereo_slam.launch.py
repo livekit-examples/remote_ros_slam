@@ -125,7 +125,7 @@ def generate_launch_description():
             default_value='/remote_ros_slam/calibration/stereo_calibration.json',
             description='stereo_calibration.json of the SBS fisheye camera.'),
         DeclareLaunchArgument(
-            'sbs_topic', default_value='/stereo/image_raw/compressed',
+            'sbs_topic', default_value='/stereo_camera',
             description='SBS sensor_msgs/CompressedImage topic.'),
         DeclareLaunchArgument(
             'output_dir', default_value='',

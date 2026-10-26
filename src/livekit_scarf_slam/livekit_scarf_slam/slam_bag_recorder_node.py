@@ -58,7 +58,7 @@ class SlamBagRecorderNode(Node):
     def __init__(self):
         super().__init__('slam_bag_recorder')
         calibration_path = self.declare_parameter('calibration_path', '').value
-        sbs_topic = self.declare_parameter('sbs_topic', '/stereo/image_raw/compressed').value
+        sbs_topic = self.declare_parameter('sbs_topic', '/stereo_camera').value
         map_data_topic = self.declare_parameter('map_data_topic', '/rtabmap/mapData').value
         output_path = self.declare_parameter('output_path', '').value
         self._base_frame = self.declare_parameter('base_frame', 'stereo_link').value

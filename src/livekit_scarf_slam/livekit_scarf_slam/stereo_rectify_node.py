@@ -60,7 +60,7 @@ class StereoRectifyNode(Node):
         super().__init__('stereo_rectify')
         calibration_path = self.declare_parameter('calibration_path', '').value
         input_topic = self.declare_parameter(
-            'input_topic', '/stereo/image_raw/compressed').value
+            'input_topic', '/stereo_camera').value
         namespace = self.declare_parameter('output_namespace', '/stereo').value.rstrip('/')
         self._reduction = self.declare_parameter('decode_reduction', 2).value
         rect_scale = self.declare_parameter('rect_scale', 0.5).value

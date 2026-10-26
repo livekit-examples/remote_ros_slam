@@ -13,11 +13,10 @@ and pose graph optimization) gives the poses instead.
 The data flows in this order:
 
 1. The camera driver on the robot publishes one side-by-side (SBS) JPEG frame
-   on `/stereo/image_raw/compressed`. An SBS frame holds the left and right
-   images next to each other, so both eyes have one stamp.
-2. `ros_portal` sends the topic as the LiveKit video track `/stereo/image_raw`.
-3. `ros_portal` on the SLAM host publishes the track on
-   `/stereo/image_raw/compressed`.
+   on `/stereo_camera`. An SBS frame holds the left and right images next
+   to each other, so both eyes have one stamp.
+2. `ros_portal` sends the topic as the LiveKit video track `stereo_camera`.
+3. `ros_portal` on the SLAM host publishes the track on `/stereo_camera`.
 4. `stereo_rectify_node` splits each frame and rectifies both fisheye images
    for RTAB-Map. Rectified images have matching points on the same row.
 5. RTAB-Map calculates the poses.
@@ -132,8 +131,8 @@ Before the first run, calibrate the stereo camera. See
 
 | File | Purpose |
 | --- | --- |
-| `config/ros_portal/edge_robot.yaml` | ROS Portal on the robot. Sends `/stereo/image_raw/compressed` as a video track at 8000 kbps. |
-| `config/ros_portal/slam_host.yaml` | ROS Portal on the SLAM host. Receives the `/stereo/image_raw` track. This file is the default `LIVEKIT_CONFIG`. |
+| `config/ros_portal/edge_robot.yaml` | ROS Portal on the robot. Sends `/stereo_camera` as a video track at 8000 kbps. |
+| `config/ros_portal/slam_host.yaml` | ROS Portal on the SLAM host. Receives the `stereo_camera` track. This file is the default `LIVEKIT_CONFIG`. |
 | `config/rtabmap/stereo.yaml` | RTAB-Map parameters. `frame_id` is `stereo_link`. RTAB-Map adds at most 3 keyframes per second. |
 | `config/scarf_slam/cobra_stereo.yaml` | ScaRF-SLAM configuration. The camera blocks come from the calibration. |
 
@@ -147,7 +146,7 @@ images keep the same size. A frame with a different aspect ratio is dropped.
 | Argument | Default | Description |
 | --- | --- | --- |
 | `calibration_path` | `/remote_ros_slam/calibration/stereo_calibration.json` | The stereo calibration. |
-| `sbs_topic` | `/stereo/image_raw/compressed` | The SBS JPEG topic. |
+| `sbs_topic` | `/stereo_camera` | The SBS JPEG topic. |
 | `output_dir` | `$SLAM_RUNS_DIR/<date>_<time>` | The run folder. It gets `slam_bag` and `rtabmap.db`. |
 | `decode_reduction` | `2` | Decode the JPEG at 1/2 size. Use 1, 2, 4, or 8. |
 | `rect_scale` | `0.5` | Size of the rectified images. 0.5 gives 960x540. |
@@ -168,7 +167,7 @@ transform from your robot base frame to `stereo_link`.
 ## Run
 
 1. On the robot, start the camera driver, so that it publishes
-   `/stereo/image_raw/compressed`.
+   `/stereo_camera`.
 
 2. On the robot, from the repository root, start ROS Portal with the robot
    configuration:
@@ -215,7 +214,7 @@ the real-time demo, use an `x86_64` host with an NVIDIA GPU and
 `ENABLE_GPU=true`.
 
 To test the SLAM host without the robot, record the SBS topic once with
-`ros2 bag record /stereo/image_raw/compressed`. Then start only the `slam`
+`ros2 bag record /stereo_camera`. Then start only the `slam`
 container with `docker compose up slam`, start the launch, and play the bag.
 
 If RTAB-Map logs `quality=0` for many frames, the odometry lost track. Drive

@@ -106,7 +106,7 @@ docker compose down
 ## Run The Robot Side
 
 On the robot, only ROS Portal runs. A camera driver on the robot must publish
-the SBS JPEG topic `/stereo/image_raw/compressed`. From the repository root on
+the SBS JPEG topic `/stereo_camera`. From the repository root on
 the robot, start ROS Portal with the robot configuration:
 
 ```bash

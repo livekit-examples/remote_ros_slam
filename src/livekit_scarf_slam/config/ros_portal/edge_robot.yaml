@@ -16,7 +16,7 @@
 #
 # Sends the side-by-side (SBS) stereo JPEG topic as one LiveKit video track.
 # One track keeps both eyes in one frame with one stamp. The topic
-# /stereo/image_raw/compressed becomes the track /stereo/image_raw.
+# /stereo_camera becomes the track stereo_camera.
 
 $schema: https://raw.githubusercontent.com/livekit/ros-portal/main/src/ros_portal_config/schema/ros_portal_config.schema.json
 
@@ -25,7 +25,7 @@ ros_portal:
   ros_threads: 4
 
   topics:
-    - topic: "/stereo/image_raw/compressed"
+    - topic: "/stereo_camera"
       direction: "out"
       video_options:
         bitrate_kbps: 8000

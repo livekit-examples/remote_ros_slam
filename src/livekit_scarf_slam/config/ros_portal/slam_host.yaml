@@ -14,8 +14,8 @@
 #
 # ScaRF-SLAM demo, SLAM host side. See README.md.
 #
-# Receives the SBS stereo video track /stereo/image_raw and republishes it as
-# sensor_msgs/CompressedImage on /stereo/image_raw/compressed. Video tracks
+# Receives the SBS stereo video track stereo_camera and republishes it as
+# sensor_msgs/CompressedImage on /stereo_camera. Video tracks
 # match by exact name, so this entry is not a regex.
 
 $schema: https://raw.githubusercontent.com/livekit/ros-portal/main/src/ros_portal_config/schema/ros_portal_config.schema.json
