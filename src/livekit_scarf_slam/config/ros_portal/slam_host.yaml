@@ -17,6 +17,11 @@
 # Receives the SBS stereo video track stereo_camera and republishes it as
 # sensor_msgs/CompressedImage on /stereo_camera. Video tracks
 # match by exact name, so this entry is not a regex.
+#
+# Sends the visualization topics of the SLAM host to the room. Image topics
+# become video tracks, and the other topics become data tracks. The names are
+# literal, because a regex such as /rtabmap/.* also matches the large
+# internal topics, for example /rtabmap/mapData.
 
 $schema: https://raw.githubusercontent.com/livekit/ros-portal/main/src/ros_portal_config/schema/ros_portal_config.schema.json
 
@@ -28,3 +33,74 @@ ros_portal:
     - topic: "/stereo_camera"
       direction: "in"
 
+    # Transforms: map -> odom -> stereo_link from RTAB-Map, and the camera
+    # frames from the launch file.
+    - topic: "/tf"
+      direction: "out"
+
+    - topic: "/tf_static"
+      direction: "out"
+      latched: true
+
+    # Localization: rectified stereo pair from stereo_rectify_node (mono8).
+    - topic: "/stereo/left/image_rect"
+      direction: "out"
+      video_options:
+        bitrate_kbps: 2000
+
+    - topic: "/stereo/right/image_rect"
+      direction: "out"
+      video_options:
+        bitrate_kbps: 2000
+
+    - topic: "/stereo/left/camera_info"
+      direction: "out"
+      max_rate_hz: 1
+
+    - topic: "/stereo/right/camera_info"
+      direction: "out"
+      max_rate_hz: 1
+
+    # Localization: RTAB-Map odometry and SLAM output.
+    - topic: "/rtabmap/odom"
+      direction: "out"
+      max_rate_hz: 10
+
+    # Features of the current frame, and the local feature map of odometry.
+    - topic: "/rtabmap/odom_last_frame"
+      direction: "out"
+      max_rate_hz: 5
+
+    - topic: "/rtabmap/odom_local_map"
+      direction: "out"
+      max_rate_hz: 1
+
+    # Loop-corrected trajectory.
+    - topic: "/rtabmap/mapPath"
+      direction: "out"
+
+    # The assembled map cloud and the occupancy grid grow with the run, so
+    # they are sent at a low rate.
+    - topic: "/rtabmap/cloud_map"
+      direction: "out"
+      max_rate_hz: 0.5
+
+    - topic: "/rtabmap/map"
+      direction: "out"
+      max_rate_hz: 0.5
+
+    # Map creation: ScaRF-SLAM output. The publish_ros2_* keys of
+    # config/scarf_slam/cobra_stereo.yaml turn these topics on.
+    - topic: "/scarf_slam/clouds"
+      direction: "out"
+
+    - topic: "/scarf_slam/slam_poses"
+      direction: "out"
+
+    - topic: "/scarf_slam/slam_poses_prev"
+      direction: "out"
+
+    - topic: "/scarf_slam/images"
+      direction: "out"
+      video_options:
+        bitrate_kbps: 1000

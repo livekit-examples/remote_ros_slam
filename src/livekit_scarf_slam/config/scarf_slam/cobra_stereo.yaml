@@ -23,9 +23,9 @@ max_distance: 0
 num_ref_poses_per_batch: 6
 num_ref_poses_per_submap: 6
 overlap_ref_views: 1
-publish_ros2_pointcloud: false
-publish_ros2_path: false
-publish_ros2_images: false
+publish_ros2_pointcloud: true
+publish_ros2_path: true
+publish_ros2_images: true
 pinhole_intrinsics: [539.0, 539.0, 400.0, 300.0]
 pinhole_resolution: [800, 600]
 fisheye_cam0:

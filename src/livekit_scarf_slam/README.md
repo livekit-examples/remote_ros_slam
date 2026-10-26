@@ -132,9 +132,9 @@ Before the first run, calibrate the stereo camera. See
 | File | Purpose |
 | --- | --- |
 | `config/ros_portal/edge_robot.yaml` | ROS Portal on the robot. Sends `/stereo_camera` as a video track at 8000 kbps. |
-| `config/ros_portal/slam_host.yaml` | ROS Portal on the SLAM host. Receives the `stereo_camera` track. This file is the default `LIVEKIT_CONFIG`. |
+| `config/ros_portal/slam_host.yaml` | ROS Portal on the SLAM host. Receives the `stereo_camera` track. Sends the rectified images as video tracks, and `/tf`, the RTAB-Map odometry, trajectory, and map, and the ScaRF-SLAM output as data tracks. This file is the default `LIVEKIT_CONFIG`. |
 | `config/rtabmap/stereo.yaml` | RTAB-Map parameters. `frame_id` is `stereo_link`. RTAB-Map adds at most 3 keyframes per second. |
-| `config/scarf_slam/cobra_stereo.yaml` | ScaRF-SLAM configuration. The camera blocks come from the calibration. |
+| `config/scarf_slam/cobra_stereo.yaml` | ScaRF-SLAM configuration. The camera blocks come from the calibration. ScaRF-SLAM publishes `/scarf_slam/clouds`, `/scarf_slam/slam_poses`, and `/scarf_slam/images` while it runs. |
 
 The camera driver on the robot must use the calibrated mode, 3840x1080. A
 frame rate of 15 fps is enough for RTAB-Map. If LiveKit lowers the stream
