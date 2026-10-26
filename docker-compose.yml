@@ -29,7 +29,7 @@ services:
     tty: true
 
   ros_portal:
-    image: ${ROS_PORTAL_IMAGE:-livekit/ros-portal:jazzy-v1.0.0-rc3}
+    image: ${ROS_PORTAL_IMAGE:-livekit/ros-portal:jazzy-v0.2.0}
     container_name: ros_portal
     network_mode: host
     ipc: host
