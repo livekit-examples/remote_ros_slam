@@ -57,3 +57,7 @@ log/
 
 # SLAM run output (bind-mounted into the slam container)
 runs/
+
+
+# LK Creds
+.lk_creds
