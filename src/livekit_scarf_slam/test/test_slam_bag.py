@@ -110,6 +110,22 @@ def test_node_without_image_is_skipped_once():
     assert tracker.snapshot() == []
 
 
+def test_discarded_keyframe_stays_out_of_the_snapshot():
+    stamps = [T0, T0 + 400_000_000]
+    images = _images(*stamps)
+    tracker = KeyframeTracker(BASE_TO_CAMERA, TOLERANCE_NS)
+    graph = {1: _translation(0.0), 2: _translation(1.0)}
+    tracker.update([_node(1, stamps[0], 0.0), _node(2, stamps[1], 1.0)],
+                   graph, np.eye(4), images.nearest)
+
+    tracker.discard(2)
+    # A later graph still has node 2. It must not come back.
+    tracker.update([_node(2, stamps[1], 1.0)], graph, np.eye(4), images.nearest)
+
+    assert tracker.keyframe_count == 1
+    assert [stamp for stamp, _ in tracker.snapshot()] == [stamps[0]]
+
+
 def test_node_outside_the_graph_uses_map_to_odom():
     images = _images(T0)
     tracker = KeyframeTracker(BASE_TO_CAMERA, TOLERANCE_NS)

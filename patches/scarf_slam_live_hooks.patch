@@ -1,0 +1,134 @@
+diff --git a/scarf_slam/mapping_app.py b/scarf_slam/mapping_app.py
+index 8fa0747..1bcd130 100644
+--- a/scarf_slam/mapping_app.py
++++ b/scarf_slam/mapping_app.py
+@@ -1502,51 +1502,12 @@ class ScaRFSLAM():
+         return False
+ 
+ 
+-    def app_configure(self, config_path: Union[str, Path]):
+-        # Config the application
+-        config_path = Path(config_path).expanduser()
+-        self.config = self._load_runtime_config(config_path)
+-        self.config_filename = str(config_path)
+-        self.model_name = self.config.get("model_name")
+-        self.is_mono = bool(self.config.get("is_mono", False))
+-        if self.is_mono and self.prev_slam_folder is not None:
+-            raise ValueError(
+-                "Multi-session mode not supported for monocular only yet"
+-            )
+-
+-        self.device = _require_cuda()
++    def _load_input_data(self) -> None:
++        """Load the images, odometry, and trajectory snapshots of the session.
+ 
+-        # --- load fisheye config ---
+-        self.fisheye_cameras = load_fisheye_cameras_from_config(self.config)
+-        if self.fisheye_cameras:
+-            print(f"\n=== Fisheye Cameras Loaded From Config: {self.config_filename} ===")
+-            for cam_id, cam in self.fisheye_cameras.items():
+-                print(f"{cam_id}:")
+-                print(cam)
+-                print("")
+-        else:
+-            print("\n=== No Fisheye Cameras In Config; Input Images Assumed Pinhole ===")
+-
+-        # --- load pinhole config ---
+-        missing_pinhole_fields = [
+-            field_name
+-            for field_name in ("pinhole_intrinsics", "pinhole_resolution")
+-            if field_name not in self.config
+-        ]
+-        if missing_pinhole_fields:
+-            raise KeyError(
+-                f"Config {self.config_filename} is missing required pinhole fields: "
+-                f"{missing_pinhole_fields}"
+-            )
+-        self.pinhole_camera = PinholeCamera(
+-            intrinsics=self.config["pinhole_intrinsics"],
+-            resolution=self.config["pinhole_resolution"],
+-        )
+-        
+-        print("\n=== Pinhole Camera Loaded ===")
+-        print(self.pinhole_camera)
+-
+-        # --- load trajectories and image timestamps ---
++        Subclasses override this to read the input from another source, for
++        example a live ROS stream.
++        """
+         use_slam = bool(self.config.get("use_slam"))
+         using_file_input = self.image_folder is not None or self.poses is not None
+         if self.input_bag is None and not using_file_input:
+@@ -1701,6 +1662,63 @@ class ScaRFSLAM():
+ 
+         print(f"session start time: {self.session_start_time}, {self.ref_timestamps[0]}")
+ 
++
++    def _wait_for_more_input(self) -> bool:
++        """Return True when more reference poses were appended to the input.
++
++        A recorded input has no more data, so the processing loop finishes.
++        A live input blocks here until new poses arrive or the session ends.
++        """
++        return False
++
++
++    def app_configure(self, config_path: Union[str, Path]):
++        # Config the application
++        config_path = Path(config_path).expanduser()
++        self.config = self._load_runtime_config(config_path)
++        self.config_filename = str(config_path)
++        self.model_name = self.config.get("model_name")
++        self.is_mono = bool(self.config.get("is_mono", False))
++        if self.is_mono and self.prev_slam_folder is not None:
++            raise ValueError(
++                "Multi-session mode not supported for monocular only yet"
++            )
++
++        self.device = _require_cuda()
++
++        # --- load fisheye config ---
++        self.fisheye_cameras = load_fisheye_cameras_from_config(self.config)
++        if self.fisheye_cameras:
++            print(f"\n=== Fisheye Cameras Loaded From Config: {self.config_filename} ===")
++            for cam_id, cam in self.fisheye_cameras.items():
++                print(f"{cam_id}:")
++                print(cam)
++                print("")
++        else:
++            print("\n=== No Fisheye Cameras In Config; Input Images Assumed Pinhole ===")
++
++        # --- load pinhole config ---
++        missing_pinhole_fields = [
++            field_name
++            for field_name in ("pinhole_intrinsics", "pinhole_resolution")
++            if field_name not in self.config
++        ]
++        if missing_pinhole_fields:
++            raise KeyError(
++                f"Config {self.config_filename} is missing required pinhole fields: "
++                f"{missing_pinhole_fields}"
++            )
++        self.pinhole_camera = PinholeCamera(
++            intrinsics=self.config["pinhole_intrinsics"],
++            resolution=self.config["pinhole_resolution"],
++        )
++        
++        print("\n=== Pinhole Camera Loaded ===")
++        print(self.pinhole_camera)
++
++        # --- load trajectories and image timestamps ---
++        self._load_input_data()
++
+         # --- load mapping config ---
+         configured_frame_scale_opt = bool(self.config.get("frame_scale_opt", False))
+         configured_submap_scale_opt = bool(self.config.get("submap_scale_opt", False))
+@@ -1850,6 +1868,8 @@ class ScaRFSLAM():
+                 i += 1
+ 
+             if not indices or len(indices) < self.num_ref_poses_per_batch:
++                if self._wait_for_more_input():
++                    continue
+                 print(f"No enough poses left; exiting loop.")
+                 self._print_runtime_summary(counter)
+ 

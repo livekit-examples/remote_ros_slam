@@ -38,11 +38,15 @@ RUN pip install --no-cache-dir "torch>=2" torchvision \
 # gtsam 4.3 lists pytest>=9 as a runtime dependency, and pytest 9 breaks the
 # launch_testing plugin of colcon test, so it goes in with --no-deps (numpy is
 # its only other dependency).
+# The ScaRF-SLAM patch adds the input hooks of the live mapping node
+# (livekit_scarf_slam/scarf_live_mapping_node.py). Replay is unchanged.
 COPY scarf_slam.repos /opt/scarf/scarf_slam.repos
 COPY patches /opt/scarf/patches
 RUN vcs import /opt/scarf < /opt/scarf/scarf_slam.repos \
     && git -C /opt/scarf/Depth-Anything-3 apply \
         /opt/scarf/patches/depth_anything_3_optional_pycolmap.patch \
+    && git -C /opt/scarf/ScaRF-SLAM apply \
+        /opt/scarf/patches/scarf_slam_live_hooks.patch \
     && cd /opt/scarf/Depth-Anything-3 \
     && if [ "$(uname -m)" = "x86_64" ]; then \
         pip install --no-cache-dir -e . addict; \
@@ -60,6 +64,10 @@ RUN vcs import /opt/scarf < /opt/scarf/scarf_slam.repos \
     fi \
     && pip install --no-cache-dir rosbags open3d "vismatch==1.3.1" \
     && pip install --no-cache-dir --no-deps gtsam
+
+# Draco encoder of the submap chunks (foxglove_msgs/CompressedPointCloud) of
+# scarf_live_mapping_node.
+RUN pip install --no-cache-dir "DracoPy==2.2.0"
 
 # Install every dependency the package manifests declare (rtabmap_ros &c).
 # Only the manifests are copied first so source edits keep this layer cached.
