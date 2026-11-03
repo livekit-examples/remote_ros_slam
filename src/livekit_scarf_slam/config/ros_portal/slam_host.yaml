@@ -18,10 +18,14 @@
 # sensor_msgs/CompressedImage on /stereo_camera. Video tracks
 # match by exact name, so this entry is not a regex.
 #
-# Sends the visualization topics of the SLAM host to the room. Image topics
-# become video tracks, and the other topics become data tracks. The names are
-# literal, because a regex such as /rtabmap/.* also matches the large
-# internal topics, for example /rtabmap/mapData.
+# Sends the visualization topics of the SLAM host to the room as data tracks.
+# The names are literal, because a regex such as /rtabmap/.* also matches the
+# large internal topics, for example /rtabmap/mapData.
+#
+# No video: the camera view is the robot's stereo_camera track, which is
+# already in the room. Video from this host, such as the rectified pair or
+# /scarf_slam/images (about 5 Mbps together), made the data tracks lose a
+# third of their messages while a viewer watched it.
 
 $schema: https://raw.githubusercontent.com/livekit/ros-portal/main/src/ros_portal_config/schema/ros_portal_config.schema.json
 
@@ -42,17 +46,7 @@ ros_portal:
       direction: "out"
       latched: true
 
-    # Localization: rectified stereo pair from stereo_rectify_node (mono8).
-    - topic: "/stereo/left/image_rect"
-      direction: "out"
-      video_options:
-        bitrate_kbps: 2000
-
-    - topic: "/stereo/right/image_rect"
-      direction: "out"
-      video_options:
-        bitrate_kbps: 2000
-
+    # Localization: calibration of the rectified stereo pair.
     - topic: "/stereo/left/camera_info"
       direction: "out"
       max_rate_hz: 1
@@ -66,32 +60,31 @@ ros_portal:
       direction: "out"
       max_rate_hz: 10
 
-    # Features of the current frame, and the local feature map of odometry.
-    - topic: "/rtabmap/odom_last_frame"
-      direction: "out"
-      max_rate_hz: 5
-
-    - topic: "/rtabmap/odom_local_map"
-      direction: "out"
-      max_rate_hz: 1
+    # The feature clouds of odometry stay local: /rtabmap/odom_last_frame
+    # (15 KB PointCloud2 at 5 Hz) and /rtabmap/odom_local_map (64 KB at 1 Hz).
+    # Large and frequent messages make the other data tracks lose messages.
 
     # Loop-corrected trajectory.
     - topic: "/rtabmap/mapPath"
       direction: "out"
 
-    # The assembled map cloud and the occupancy grid grow with the run, so
-    # they are sent at a low rate.
-    - topic: "/rtabmap/cloud_map"
-      direction: "out"
-      max_rate_hz: 0.5
-
+    # The occupancy grid grows with the run, so it is sent at a low rate.
+    # /rtabmap/cloud_map stays local: it reaches 2.6 MB (median) to 4.5 MB per
+    # message, which an unreliable DataTrack almost never delivers whole, and
+    # while it is sent the messages of the other data tracks are lost (see
+    # paced_sender.py). The ScaRF-SLAM chunks below carry the map instead.
     - topic: "/rtabmap/map"
       direction: "out"
       max_rate_hz: 0.5
 
     # Map creation: ScaRF-SLAM output. The publish_ros2_* keys of
-    # config/scarf_slam/cobra_stereo.yaml turn these topics on.
-    - topic: "/scarf_slam/clouds"
+    # config/scarf_slam/cobra_stereo.yaml turn these topics on. The map goes
+    # out as voxelized Draco chunks of the submaps, one
+    # foxglove_msgs/CompressedPointCloud topic per chunk and at most 32 KB per
+    # message, because DataTracks are not reliable (see submap_cloud.py). The
+    # chunk topics appear while ScaRF-SLAM maps, so this entry is a regex.
+    # The PointCloud2 /scarf_slam/clouds of the whole map stays local (RViz).
+    - topic: "/scarf_slam/submaps/.*"
       direction: "out"
 
     - topic: "/scarf_slam/slam_poses"
@@ -99,8 +92,3 @@ ros_portal:
 
     - topic: "/scarf_slam/slam_poses_prev"
       direction: "out"
-
-    - topic: "/scarf_slam/images"
-      direction: "out"
-      video_options:
-        bitrate_kbps: 1000

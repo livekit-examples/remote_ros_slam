@@ -32,7 +32,13 @@ services:
     tty: true
 
   ros_portal:
-    image: ${ROS_PORTAL_IMAGE:-livekit/ros-portal:jazzy-v0.2.0}
+    # ROS_PORTAL_IMAGE plus foxglove_msgs, see ros_portal.Dockerfile.
+    build:
+      context: .
+      dockerfile: ros_portal.Dockerfile
+      args:
+        ROS_PORTAL_BASE: ${ROS_PORTAL_IMAGE:-livekit/ros-portal:jazzy-v0.2.0}
+    image: remote_ros_slam/ros-portal:jazzy-foxglove
     container_name: ros_portal
     network_mode: host
     ipc: host

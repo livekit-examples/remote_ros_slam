@@ -123,7 +123,7 @@ LIVEKIT_URL=<url> LIVEKIT_TOKEN=<edge_robot token> \
 | `LIVEKIT_TOKEN` | (required) | LiveKit access token for ROS Portal. |
 | `LIVEKIT_CONFIG` | `./src/livekit_scarf_slam/config/ros_portal/slam_host.yaml` | ROS Portal configuration file on the host. |
 | `ENABLE_GPU` | `true` | `true` gives the `slam` container all NVIDIA GPUs. `false` runs it on the CPU. Use only `true` or `false`. |
-| `ROS_PORTAL_IMAGE` | `livekit/ros-portal:jazzy-v1.0.0-rc3` | ROS Portal image. |
+| `ROS_PORTAL_IMAGE` | `livekit/ros-portal:jazzy-v0.2.0` | Base ROS Portal image. Compose adds `foxglove_msgs` to it (`ros_portal.Dockerfile`) and tags the result `remote_ros_slam/ros-portal:jazzy-foxglove`. |
 
 Compose reads all variables of the file, also for `docker compose build` and
 `docker compose down`. If `LIVEKIT_URL` or `LIVEKIT_TOKEN` is not set, these

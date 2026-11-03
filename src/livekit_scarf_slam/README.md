@@ -23,10 +23,8 @@ The data flows in this order:
 6. `slam_bag_recorder_node` writes the ScaRF-SLAM input bag. For each RTAB-Map
    keyframe, the bag has the left fisheye image, the odometry pose, and the
    loop-corrected trajectory.
-7. After the run, ScaRF-SLAM builds the dense map from the bag.
-
-ScaRF-SLAM always reads a recorded bag, also in its upstream online mode.
-RTAB-Map runs live on the SLAM host. The dense map comes after the run.
+7. ScaRF-SLAM builds the dense map, either live from the same keyframes or
+   after the run from the bag. See [Replay Or Live](#replay-or-live).
 
 ## Python Environment
 
@@ -132,7 +130,7 @@ Before the first run, calibrate the stereo camera. See
 | File | Purpose |
 | --- | --- |
 | `config/ros_portal/edge_robot.yaml` | ROS Portal on the robot. Sends `/stereo_camera` as a video track at 8000 kbps. |
-| `config/ros_portal/slam_host.yaml` | ROS Portal on the SLAM host. Receives the `stereo_camera` track. Sends the rectified images as video tracks, and `/tf`, the RTAB-Map odometry, trajectory, and map, and the ScaRF-SLAM output as data tracks. This file is the default `LIVEKIT_CONFIG`. |
+| `config/ros_portal/slam_host.yaml` | ROS Portal on the SLAM host. Receives the `stereo_camera` track. Sends `/tf`, the RTAB-Map odometry, trajectory, and map, and the ScaRF-SLAM output as data tracks, and no video: viewers watch the robot's `stereo_camera` track. This file is the default `LIVEKIT_CONFIG`. |
 | `config/rtabmap/stereo.yaml` | RTAB-Map parameters. `frame_id` is `stereo_link`. RTAB-Map adds at most 3 keyframes per second. |
 | `config/scarf_slam/cobra_stereo.yaml` | ScaRF-SLAM configuration. The camera blocks come from the calibration. ScaRF-SLAM publishes `/scarf_slam/clouds`, `/scarf_slam/slam_poses`, and `/scarf_slam/images` while it runs. |
 
@@ -151,6 +149,11 @@ images keep the same size. A frame with a different aspect ratio is dropped.
 | `decode_reduction` | `2` | Decode the JPEG at 1/2 size. Use 1, 2, 4, or 8. |
 | `rect_scale` | `0.5` | Size of the rectified images. 0.5 gives 960x540. |
 | `rtabmap_viz` | `false` | Start the RTAB-Map GUI. The GUI needs a display. |
+| `scarf_live` | `false` | Run ScaRF-SLAM live, and save the map on `Ctrl+C`. See [Replay Or Live](#replay-or-live). |
+| `scarf_config` | `config/scarf_slam/cobra_stereo.yaml` | ScaRF-SLAM configuration of the live mapping. The node copies it to `<output_dir>/scarf_config.yaml`. |
+| `scarf_live_params` | empty | Optional ROS parameter file for the live node, for example the `submap_*` settings of [Map cloud over LiveKit](#map-cloud-over-livekit). Use the node name `scarf_live_mapping` or `/**`. |
+
+Launch arguments use `:=`, for example `output_dir:=/remote_ros_slam/runs/run1`.
 
 The image sets `SLAM_RUNS_DIR` to `/remote_ros_slam/runs`. The `runs/` folder
 of the repository is mounted there, so the run output stays on the host.
@@ -209,7 +212,8 @@ transform from your robot base frame to `stereo_link`.
      --config /remote_ros_slam/src/livekit_scarf_slam/config/scarf_slam/cobra_stereo.yaml
    ```
 
-If the container runs on the CPU, Depth Anything 3 is slow in step 7. For
+If the container runs on the CPU, Depth Anything 3 is slow in step 7, and
+live mapping cannot keep up. For
 the real-time demo, use an `x86_64` host with an NVIDIA GPU and
 `ENABLE_GPU=true`.
 
@@ -219,6 +223,168 @@ container with `docker compose up slam`, start the launch, and play the bag.
 
 If RTAB-Map logs `quality=0` for many frames, the odometry lost track. Drive
 slower, add light, or point the camera at surfaces with more texture.
+
+## Replay Or Live
+
+The command decides the mode. Nothing is detected.
+
+- **Replay:** `run_mapping.py --input_bag <bag>`, as in step 7. ScaRF-SLAM
+  reads the closed bag and stops when it runs out of keyframes. This is the
+  unchanged upstream code path.
+- **Live:** `stereo_slam.launch.py scarf_live:=true`. The launch starts
+  `scarf_live_mapping_node` instead of `slam_bag_recorder_node`. The node
+  writes the same `slam_bag`, and also gives each keyframe to ScaRF-SLAM in
+  the same process, so the dense map grows while the rover drives:
+
+  ```bash
+  ros2 launch livekit_scarf_slam stereo_slam.launch.py scarf_live:=true \
+    output_dir:=/remote_ros_slam/runs/live1
+  ```
+
+  ScaRF-SLAM loads its model after the first keyframe, and then maps a batch
+  of 6 keyframes at a time. A keyframe goes to ScaRF-SLAM only after the
+  next RTAB-Map update (see below), so the map trails the rover by a few
+  seconds. It
+  publishes `/scarf_slam/clouds`, `/scarf_slam/slam_poses`, and
+  `/scarf_slam/images`. The map also goes out in small chunks on
+  `/scarf_slam/submaps/...` (see below), and ROS Portal sends the chunks and the
+  poses to the room. `/scarf_slam/images` stays local. Press `Ctrl+C`
+  once. ScaRF-SLAM maps the rest of the keyframes and saves the map to
+  `<output_dir>/recon/rtabmap_slam`. The launch waits up to 120 seconds for
+  this before it stops the node.
+
+The live node and a replay of its bag process the same keyframes, with the
+same trajectory snapshot for each batch, so they give the same map:
+
+- The final trajectory has the key of the last snapshot, and a replay uses
+  it in place of that snapshot. So the live input holds the keyframes of a
+  snapshot until a later snapshot arrives, or until `Ctrl+C`. No live batch
+  uses a snapshot that the final trajectory replaces.
+- The node copies `scarf_config` to `<output_dir>/scarf_config.yaml` before
+  it maps. The launch reads `scarf_config` from the install space, which is a
+  copy of `src/` made at the last `colcon build` (without
+  `--symlink-install`). Replay with the copy in the run folder, not with the
+  file in `src/`.
+
+To compare a live run with its replay, write the replay to another folder,
+because the replay also saves to `<slam_folder>/recon`:
+
+```bash
+cd /opt/scarf/ScaRF-SLAM
+python3 run_mapping.py --slam_folder /remote_ros_slam/runs/live1_replay \
+  --input_bag /remote_ros_slam/runs/live1/slam_bag \
+  --config /remote_ros_slam/runs/live1/scarf_config.yaml
+```
+
+Depth Anything 3 and the matchers run on the GPU, where the results can
+change in the last bits from run to run. Two replays of one bag can also
+differ that little, so compare the live run to the replay with a tolerance.
+
+`patches/scarf_slam_live_hooks.patch` adds the two input hooks that the live
+node overrides in `livekit_scarf_slam/live_mapper.py`. Replay does not use
+them.
+
+### Map cloud over LiveKit
+
+LiveKit DataTracks are not reliable, and a frame is lost when one of its
+packets is lost, so a multi-megabyte map message rarely arrives. ScaRF-SLAM
+republishes its whole map after every batch, about 14 MB per message as a
+`PointCloud2` after a minute of mapping. That `/scarf_slam/clouds` stays
+local (RViz). For the room, the live node sends the map as small messages
+instead (`livekit_scarf_slam/submap_cloud.py`):
+
+- Each submap is voxelized (5 cm by default) from its full-resolution points,
+  moved to `map`, and split into spatially compact Draco chunks of at most
+  32 KB.
+- Each chunk has its own `foxglove_msgs/CompressedPointCloud` topic in the
+  `map` frame. The Foxglove 3D panel keeps the latest message of each topic,
+  so the chunks together show the whole map, and a resend replaces a chunk in
+  place. The topics are numbered slots, `/scarf_slam/submaps/chunk_000` and
+  up, in the order the chunks first appear, so every run uses the same names
+  (see [Foxglove layout](#foxglove-layout)).
+- A submap is sent when it is new, when its scale changes by more than 2%, or
+  when its anchor moves by more than 1 cm or 0.5 degrees.
+- A sender thread (`livekit_scarf_slam/paced_sender.py`) sends the chunk
+  messages at most 2 Mbps and 5 ms apart, and sends the last message of a new topic again after
+  2 s. Every second, it also sends the least recently sent chunk again, so a
+  lost chunk or a late viewer catches up without acknowledgements, also after
+  the mapping stops.
+
+Voxelization replaces the random 5% sample of `/scarf_slam/clouds`, so the
+point density is even and the map grows with the mapped surface, not with
+the run time. Each voxel holds the mean position and color of its points,
+and, as in the ScaRF-SLAM sample, only points with a valid confidence count.
+On a recorded 10-minute run with 13 submaps, 10 cm voxels without colors
+sent 97 messages on 13 chunk topics: 0.9 KB median, 10.8 KB largest, 0.18 MB
+for the whole run (1.2 MB with 3 cm voxels). Every valid submap point is
+within 59 mm (p99) of a 10 cm voxel point, and half are within 22 mm.
+
+Delivery, measured through LiveKit Cloud on the `camera-only` bag (84 s),
+with a second ROS Portal as the viewer. With the defaults (5 cm, colors), the
+map was 83k points on 23 chunk topics, the chunks 14.6 KB median and 31 KB
+largest, up to 190 KB per batch, and the publish step took about 50 ms per
+batch on the ScaRF-SLAM thread. 1.5% of the messages were lost, and all 23
+topics ended with the right content on the viewer. At 10 cm with colors, the
+map was 23k points on 20 topics, 5.5 KB median chunks.
+
+The other topics that the SLAM host sends compete with the chunks. With
+video tracks from the host (about 5 Mbps), three runs lost 34% to 46% of the
+chunks while mapping, and with `/rtabmap/odom_last_frame` (15 KB at 5 Hz), a
+synthetic chunk stream lost about twice as many. So `slam_host.yaml` sends
+no video and none of the RTAB-Map point clouds. The resend timer brought
+every chunk topic to the right content on the viewer in every run, also in
+the runs that lost 46%.
+
+Parameters of `scarf_live_mapping_node` (set them with
+`scarf_live_params:=<file>`):
+
+| Parameter | Default | Description |
+| --- | --- | --- |
+| `submap_voxel_m` | `0.05` | Voxel size. 0.10 sends about a third of the bytes, with points within about 5 cm (p95) of the surface. 0.03 sends about 2.5x the bytes of 0.05. |
+| `submap_max_bytes` | `32000` | Size cap of one chunk message. |
+| `submap_scale_tolerance` | `0.02` | Relative scale change that resends a submap. |
+| `submap_translation_tolerance_m` | `0.01` | Anchor translation that resends a submap. |
+| `submap_rotation_tolerance_deg` | `0.5` | Anchor rotation that resends a submap. |
+| `submap_refresh_count` | `0` | Submaps sent again after each batch, least recently sent first. Off, because the timer below resends every chunk. |
+| `submap_colors` | `true` | Send the mean voxel colors (5 bits per channel). About doubles the bytes. With `false`, the chunks carry positions only, and Foxglove colors the points. |
+| `submap_send_gap_ms` | `5.0` | Time between two chunk messages. ROS Portal loses most messages that are published back to back (see `livekit_scarf_slam/paced_sender.py`). |
+| `submap_warmup_s` | `2.0` | A new chunk topic gets its last message again this long after its first one, because ROS Portal loses the first message on a new topic. |
+| `submap_refresh_interval_s` | `1.0` | Every interval, the chunk topic sent least recently gets its last message again, so lost messages and late viewers catch up, also after the mapping stops. At most one extra message per interval: a 20-topic map is fully resent every 20 s, about 3 KB/s. `0` turns it off. |
+| `submap_max_rate_kbps` | `2000` | Rate cap of the chunk messages. After a message, the sender waits for its bytes at this rate, at least `submap_send_gap_ms`. ROS Portal loses more messages the faster they go out: 20% of the 5 cm map in 8 KB chunks at about 10 Mbps. |
+| `publish_global_cloud` | `true` | Also publish the local `/scarf_slam/clouds` `PointCloud2`. |
+
+ROS Portal on the SLAM host sends `/scarf_slam/submaps/.*` (a regex, because
+the chunk topics appear while ScaRF-SLAM maps). The receiving ROS Portal needs
+the same inbound entry:
+
+```yaml
+    - topic: "/scarf_slam/submaps/.*"
+      direction: "in"
+```
+
+#### Foxglove layout
+
+Foxglove keeps the 3D panel settings per topic, so a chunk slot that the
+layout does not list starts with the default settings. To give every slot the
+same settings, show `/scarf_slam/submaps/chunk_000` in a 3D panel, set it up
+(for example the point size, and Color mode "RGBA (separate fields)" for the
+voxel colors), and export the layout (Layouts > Export). Copy
+the file to `runs/`, then copy the settings to the first 256 slots:
+
+```bash
+ros2 run livekit_scarf_slam expand_foxglove_layout.py \
+  /remote_ros_slam/runs/layout.json
+```
+
+Import the result. `--count` sets the number of slots. A 10-minute run with
+13 submaps used 13 (19 with 3 cm voxels).
+
+Every ROS Portal on the track, and the ROS graph that Foxglove reads, needs
+`foxglove_msgs`: ROS Portal rejects a data track whose type it cannot render,
+and matches the type by a hash of the `.msg` text, so use the same
+`foxglove_msgs` version (Jazzy apt: 3.6.0) everywhere. The compose
+`ros_portal` service builds `ros_portal.Dockerfile`, which adds it to
+`ROS_PORTAL_IMAGE`.
 
 For more ScaRF-SLAM detail, see the upstream wiki:
 

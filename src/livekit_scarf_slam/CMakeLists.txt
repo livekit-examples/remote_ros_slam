@@ -23,6 +23,8 @@ ament_python_install_package(${PROJECT_NAME})
 
 install(PROGRAMS
   scripts/convert_stereo_calibration.py
+  scripts/expand_foxglove_layout.py
+  scripts/scarf_live_mapping_node
   scripts/slam_bag_recorder_node
   scripts/stereo_rectify_node
   DESTINATION lib/${PROJECT_NAME})

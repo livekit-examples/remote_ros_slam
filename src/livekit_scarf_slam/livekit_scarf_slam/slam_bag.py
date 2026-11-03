@@ -152,6 +152,11 @@ class KeyframeTracker:
                 self._map_poses[node_id] = np.asarray(pose, dtype=float)
         return new_keyframes
 
+    def discard(self, node_id):
+        """Remove a keyframe that was not written, so that no snapshot has it."""
+        self._stamps.pop(node_id, None)
+        self._map_poses.pop(node_id, None)
+
     def snapshot(self):
         """
         Return the trajectory of all keyframes as (stamp_ns, 4x4 cam0 pose in the map frame).

@@ -110,9 +110,11 @@ class SlamBagRecorderNode(Node):
         for keyframe in keyframes:
             jpeg = left_eye_jpeg(keyframe.image.data, self._eye_size, self._jpeg_quality)
             if jpeg is None:
+                # Without an image, a replay rejects the pose in the trajectory.
                 self.get_logger().warn(f'Keyframe {keyframe.node_id}: the JPEG does not decode')
+                self._tracker.discard(keyframe.node_id)
                 continue
-            self._writer.write(
+            self._emit(
                 ODOMETRY_TOPIC,
                 odometry_msg(keyframe.odom_pose, keyframe.stamp_ns,
                              self._odom_frame, self._camera_frame),
@@ -122,14 +124,18 @@ class SlamBagRecorderNode(Node):
             image.header.frame_id = self._camera_frame
             image.format = 'jpeg'
             image.data.frombytes(jpeg)
-            self._writer.write(IMAGE_TOPIC, image, keyframe.stamp_ns)
+            self._emit(IMAGE_TOPIC, image, keyframe.stamp_ns)
 
         snapshot = path_msg(self._tracker.snapshot(), self._map_frame)
-        self._writer.write(TRAJECTORY_TOPIC, snapshot, ns_from_time(snapshot.header.stamp))
+        self._emit(TRAJECTORY_TOPIC, snapshot, ns_from_time(snapshot.header.stamp))
         self.get_logger().info(
             f'{self._tracker.keyframe_count} keyframes, '
             f'{self._tracker.skipped_nodes} graph nodes without a matching image',
             throttle_duration_sec=10.0)
+
+    def _emit(self, topic, msg, stamp_ns):
+        """Write one ScaRF-SLAM input message. Subclasses also send it elsewhere."""
+        self._writer.write(topic, msg, stamp_ns)
 
     def _create_tracker(self):
         try:
@@ -148,7 +154,7 @@ class SlamBagRecorderNode(Node):
         """Write the final trajectory and close the bag."""
         if self._tracker is not None and self._tracker.keyframe_count:
             final = path_msg(self._tracker.snapshot(), self._map_frame)
-            self._writer.write(FINAL_TRAJECTORY_TOPIC, final, ns_from_time(final.header.stamp))
+            self._emit(FINAL_TRAJECTORY_TOPIC, final, ns_from_time(final.header.stamp))
         self._writer.close()
         keyframes = self._tracker.keyframe_count if self._tracker is not None else 0
         self.get_logger().info(f'Closed {self._output_path} with {keyframes} keyframes')
