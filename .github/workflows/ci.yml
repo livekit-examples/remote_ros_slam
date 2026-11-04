@@ -9,7 +9,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # The CUDA PyTorch wheels make the image larger than the runner's free
       # disk, so drop preinstalled toolchains this build does not use.
