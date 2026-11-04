@@ -46,23 +46,15 @@ ros_portal:
       direction: "out"
       latched: true
 
-    # Localization: calibration of the rectified stereo pair.
-    - topic: "/stereo/left/camera_info"
-      direction: "out"
-      max_rate_hz: 1
-
-    - topic: "/stereo/right/camera_info"
-      direction: "out"
-      max_rate_hz: 1
-
-    # Localization: RTAB-Map odometry and SLAM output.
-    - topic: "/rtabmap/odom"
-      direction: "out"
-      max_rate_hz: 10
-
-    # The feature clouds of odometry stay local: /rtabmap/odom_last_frame
-    # (15 KB PointCloud2 at 5 Hz) and /rtabmap/odom_local_map (64 KB at 1 Hz).
-    # Large and frequent messages make the other data tracks lose messages.
+    # Every data track adds traffic that can make the map chunks lose
+    # messages, so only what the viewer shows goes out. These stay local:
+    # - /stereo/*/camera_info: calibrations of the rectified pair, whose
+    #   images stay local too.
+    # - /rtabmap/odom: the same pose as /tf.
+    # - /rtabmap/odom_last_frame (15 KB PointCloud2 at 5 Hz) and
+    #   /rtabmap/odom_local_map (64 KB at 1 Hz), the feature clouds of
+    #   odometry.
+    # - /scarf_slam/slam_poses_prev: only filled in multi-session mapping.
 
     # Loop-corrected trajectory.
     - topic: "/rtabmap/mapPath"
@@ -88,7 +80,4 @@ ros_portal:
       direction: "out"
 
     - topic: "/scarf_slam/slam_poses"
-      direction: "out"
-
-    - topic: "/scarf_slam/slam_poses_prev"
       direction: "out"
